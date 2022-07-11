@@ -10,63 +10,68 @@ import (
 	"github.com/gorilla/schema"
 )
 
-var tpl *template.Template
-
 // a struct for user validation
+
 type userdetails struct {
 	Username string
 	Password string
 }
 
+// a variable to access our template directory
+
+var tpl *template.Template
+
+// this function initialize the path
+
 func init() {
 	tpl = template.Must(template.ParseGlob("template/*"))
 }
 
-func readForm(r *http.Request) *userdetails {
+// this function does the login logic
+func loginLogic(w http.ResponseWriter, r *http.Request) {
 
 	r.ParseForm()
 	user := new(userdetails)
 	decoder := schema.NewDecoder()
 	decodeErr := decoder.Decode(user, r.PostForm)
+
 	if decodeErr != nil {
 		log.Print("error mapping parsed form data to a struct :", decodeErr)
 	}
 
-	return user
+	fmt.Fprintln(w, "Username:", user.Username)
+
 }
 
-func login(w http.ResponseWriter, r *http.Request) {
+//this function renders the pages
+func loginRendering(w http.ResponseWriter, r *http.Request) {
 
-	if r.Method == "GET" {
-		err := tpl.ExecuteTemplate(w, "Login.html", nil)
-		// err := parsedTemplate.Execute(w, nil)
-		if err != nil {
-			log.Fatal("cant execute html :", err)
-			return
-		}
+	fmt.Println("method:", r.Method)
 
-	} else {
-		user := readForm(r)
-		fmt.Fprint(w, "Hello", user.Username, "!")
+	//if r.Method == "GET" {
+	err := tpl.ExecuteTemplate(w, "Login.html", nil)
+	// err := parsedTemplate.Execute(w, nil)
+	if err != nil {
+		log.Fatal("cant execute html :", err)
+		return
 	}
 
 }
 
 func main() {
 
-	// // using gorilla mux
+	// // using gorilla mux to route the url to our handler
 	r := mux.NewRouter()
 
-	r.HandleFunc("/login", login)
+	r.HandleFunc("/", loginRendering)
+	r.HandleFunc("/login", loginLogic)
 
 	// creating a file server for the static files
-	fileServer := http.FileServer(http.Dir("static"))
-	r.PathPrefix("/").Handler(http.StripPrefix("/static/", fileServer))
 
-	// creating the server
-	// router := mux.NewRouter()
-	// router.HandleFunc("/", login).Methods("POST")
-	// router.PathPrefix("/").Handler(http.StripPrefix("/static", http.FileServer(http.Dir("static/"))))
+	fileServer := http.FileServer(http.Dir("static"))
+
+	// this removes the /static/ from url query
+	r.PathPrefix("/").Handler(http.StripPrefix("/static/", fileServer))
 
 	http.ListenAndServe(":8080", r)
 }
